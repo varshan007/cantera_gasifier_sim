@@ -1,0 +1,102 @@
+phases:
+- name: gas
+  thermo: ideal-gas
+  species: [H2, CO, CO2, H2O, CH4, O2, N2, C2H4, C2H2, C2H6, C6H6, TAR]
+  reactions: all
+  transport: mixture-averaged
+
+- name: solid
+  thermo: stoich-substance
+  species: [RICEHUSK, CHAR, ASH]
+  reactions: all
+
+species:
+# Gas phase species (thermo data can be imported from GRI-Mech or NIST)
+- name: H2
+  composition: {H: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.00, 1000.00, 3500.00]
+    data:
+    - [2.34433112E+00, 7.98052075E-03, -1.94781510E-05, 2.01572094E-08, -7.37611761E-12, -9.17935173E+02, 6.83010238E-01]
+    - [3.33727920E+00, -4.94024731E-05, 4.99456778E-07, -1.79566394E-10, 2.00255376E-14, -9.50158922E+02, -3.20502331E+00]
+# ... (repeat for CO, CO2, H2O, CH4, O2, N2, etc.)
+
+# Tar as a lumped species (optional)
+- name: TAR
+  composition: {C: 10, H: 8, O: 1}
+  thermo:
+    model: constant-cp
+    temperature-ranges: [300.0, 2000.0]
+    data: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+# Solid phase species (stoichiometric, for simplicity)
+- name: RICEHUSK
+  composition: {C: 40.94, H: 4.6, O: 30.6, N: 0.7, S: 0.06, Ash: 12.5}
+  thermo:
+    model: constant-cp
+    temperature-ranges: [300.0, 2000.0]
+    data: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+- name: CHAR
+  composition: {C: 90, Ash: 10}
+  thermo:
+    model: constant-cp
+    temperature-ranges: [300.0, 2000.0]
+    data: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+- name: ASH
+  composition: {Ash: 100}
+  thermo:
+    model: constant-cp
+    temperature-ranges: [300.0, 2000.0]
+    data: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+reactions:
+# Drying (moisture release)
+- equation: RICEHUSK => RICEHUSK + H2O
+  rate-constant: {A: 1.0e3, b: 0, Ea: 80000}
+  orders: {RICEHUSK: 1}
+
+# Pyrolysis (simplified, lumped)
+- equation: RICEHUSK => 0.25 CHAR + 0.05 TAR + 0.15 CH4 + 0.2 CO + 0.1 CO2 + 0.1 H2 + 0.15 H2O + 0.05 C2H4 + 0.05 C2H2 + 0.05 C2H6
+  rate-constant: {A: 1.0e5, b: 0, Ea: 120000}
+  orders: {RICEHUSK: 1}
+
+# Char oxidation
+- equation: CHAR + O2 => CO2
+  rate-constant: {A: 1.0e6, b: 0, Ea: 150000}
+  orders: {CHAR: 1, O2: 1}
+
+- equation: CHAR + 0.5 O2 => CO
+  rate-constant: {A: 5.0e5, b: 0, Ea: 140000}
+  orders: {CHAR: 1, O2: 0.5}
+
+# Char gasification (CO2 and H2O)
+- equation: CHAR + CO2 => 2 CO
+  rate-constant: {A: 1.0e4, b: 0, Ea: 180000}
+  orders: {CHAR: 1, CO2: 1}
+
+- equation: CHAR + H2O => CO + H2
+  rate-constant: {A: 1.0e4, b: 0, Ea: 160000}
+  orders: {CHAR: 1, H2O: 1}
+
+# Water-gas shift
+- equation: CO + H2O <=> CO2 + H2
+  rate-constant: {A: 1.0e3, b: 0, Ea: 70000}
+  orders: {CO: 1, H2O: 1}
+
+# Methanation
+- equation: CO + 3 H2 <=> CH4 + H2O
+  rate-constant: {A: 1.0e3, b: 0, Ea: 90000}
+  orders: {CO: 1, H2: 3}
+
+# Tar cracking (simplified)
+- equation: TAR + H2O => CO + H2 + small_species
+  rate-constant: {A: 1.0e3, b: 0, Ea: 120000}
+  orders: {TAR: 1, H2O: 1}
+
+# Ash formation (not reactive, for mass balance)
+- equation: RICEHUSK => ASH
+  rate-constant: {A: 1.0e2, b: 0, Ea: 50000}
+  orders: {RICEHUSK: 1}
